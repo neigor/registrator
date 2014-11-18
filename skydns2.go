@@ -55,7 +55,8 @@ func (r *Skydns2Registry) Refresh(service *Service) error {
 }
 
 func (r *Skydns2Registry) skydnsPath(service *Service) string {
-	return r.scope + "/skydns/" + r.path + "/" +
+	//skydns CAN NOT use custom scope! it has to start with /skydns ...
+	return "/skydns/" + r.path + "/" +
 		   reversePath(service.Name) + "/" + service.pp.ExposedPort + "/" +
 		   strings.Replace(service.ID, ":", "-", -1)
 }
