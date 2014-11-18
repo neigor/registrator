@@ -22,7 +22,7 @@ func NewSkydns2Registry(uri *url.URL) ServiceRegistry {
 		urls = append(urls, "http://"+uri.Host)
 	}
 
-	parts := strings.SplitN(uri.Path, "/", 2)
+	parts := strings.SplitN(uri.Path, "/", 3)
 
 	return &Skydns2Registry{client: etcd.NewClient(urls), path: domainPath(parts[3]), domain: parts[3], scope: parts[2]}
 }
