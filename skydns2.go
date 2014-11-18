@@ -1,12 +1,13 @@
 package main
 
 import (
-	"net/url"
-	"strconv"
-	"strings"
+    "net/url"
+    "strconv"
+    "strings"
     "fmt"
+	"log"
 
-	"github.com/coreos/go-etcd/etcd"
+    "github.com/coreos/go-etcd/etcd"
 )
 
 type Skydns2Registry struct {
@@ -24,12 +25,13 @@ func NewSkydns2Registry(uri *url.URL) ServiceRegistry {
 
 	parts := strings.SplitN(uri.Path, "/", 3)
 
-	return &Skydns2Registry{client: etcd.NewClient(urls), path: domainPath(parts[3]), domain: parts[3], scope: parts[2]}
+	return &Skydns2Registry{client: etcd.NewClient(urls), path: domainPath(parts[2]), domain: parts[2], scope: parts[1]}
 }
 
 func (r *Skydns2Registry) Register(service *Service) error {
 	port := strconv.Itoa(service.Port)
 	record := `{"host":"` + service.IP + `","port":` + port + `}`
+	log.Println("Register host " + service.IP + "," + " port:" + port + " skydns=" + r.skydnsPath(service) + " proxy="+r.proxyPath(service))
 	_, err := r.client.Set(r.skydnsPath(service), record, uint64(service.TTL))
 	if (err == nil) {
 		_, err2 := r.client.Set(r.proxyPath(service), record, uint64(service.TTL))
@@ -39,6 +41,7 @@ func (r *Skydns2Registry) Register(service *Service) error {
 }
 
 func (r *Skydns2Registry) Deregister(service *Service) error {
+	log.Println("DeRegister host " + service.IP + "," + " port:" + port + " skydns=" + r.skydnsPath(service) + " proxy="+r.proxyPath(service))
 	_, err := r.client.Delete(r.skydnsPath(service), false)
 	if (err == nil) {
 		_, err2 := r.client.Delete(r.proxyPath(service), false)
@@ -58,7 +61,7 @@ func (r *Skydns2Registry) skydnsPath(service *Service) string {
 }
 
 func (r *Skydns2Registry) proxyPath(service *Service) string {
-	return fmt.Sprintf("%s/proxy/%s.%s/%s", r.scope, service.pp.ExposedPort, service.Name, r.domain, strings.Replace(service.ID, ":", "-", -1))
+	return fmt.Sprintf("%s/proxy/%s.%s.%s/%s", r.scope, service.pp.ExposedPort, service.Name, r.domain, strings.Replace(service.ID, ":", "-", -1))
 }
 
 func reversePath(domain string) string {
@@ -70,5 +73,5 @@ func reversePath(domain string) string {
 }
 
 func domainPath(domain string) string {
-	return "/skydns/" + reversePath(domain)
+	return reversePath(domain)
 }
