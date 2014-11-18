@@ -41,7 +41,7 @@ func (r *Skydns2Registry) Register(service *Service) error {
 }
 
 func (r *Skydns2Registry) Deregister(service *Service) error {
-	log.Println("DeRegister host " + service.IP + "," + " port:" + port + " skydns=" + r.skydnsPath(service) + " proxy="+r.proxyPath(service))
+	log.Println("DeRegister host " + service.IP + "," + " port:" + strconv.Itoa(service.Port) + " skydns=" + r.skydnsPath(service) + " proxy="+r.proxyPath(service))
 	_, err := r.client.Delete(r.skydnsPath(service), false)
 	if (err == nil) {
 		_, err2 := r.client.Delete(r.proxyPath(service), false)
