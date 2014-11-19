@@ -62,7 +62,7 @@ func (r *Skydns2Registry) skydnsPath(service *Service) string {
 }
 
 func (r *Skydns2Registry) proxyPath(service *Service) string {
-	return fmt.Sprintf("%s/proxy/%s.%s.%s/%s", r.scope, service.pp.ExposedPort, service.Name, r.domain, strings.Replace(service.ID, ":", "-", -1))
+	return fmt.Sprintf("%s/proxy/%s/%s.%s/%s", r.scope, service.pp.ExposedPort, service.Name, r.domain, strings.Replace(service.ID, ":", "-", -1))
 }
 
 func reversePath(domain string) string {
