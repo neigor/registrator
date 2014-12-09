@@ -54,6 +54,7 @@ func NewServiceRegistry(uri *url.URL) ServiceRegistry {
 		"consul":  NewConsulRegistry,
 		"etcd":    NewEtcdRegistry,
 		"skydns2": NewSkydns2Registry,
+		"haproxy": NewHAProxyRegistry,
 	}[uri.Scheme]
 	if factory == nil {
 		log.Fatal("unrecognized registry backend: ", uri.Scheme)
@@ -78,13 +79,17 @@ func main() {
 	docker, err := dockerapi.NewClient(getopt("DOCKER_HOST", "unix:///var/run/docker.sock"))
 	assert(err)
 
-	uri, err := url.Parse(flag.Arg(0))
-	assert(err)
-	registry := NewServiceRegistry(uri)
+	registries := make([]ServiceRegistry, 0)
+
+	for i := range flag.Args() {
+		uri, err := url.Parse(flag.Arg(i))
+		assert(err)
+		registries = append(registries, NewServiceRegistry(uri))
+	}
 
 	bridge := &RegistryBridge{
 		docker:   docker,
-		registry: registry,
+		registries: registries,
 		services: make(map[string][]*Service),
 	}
 

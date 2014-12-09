@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"fmt"
 
 	dockerapi "github.com/fsouza/go-dockerclient"
 )
@@ -77,7 +78,6 @@ func NewService(port PublishedPort, isgroup bool) *Service {
 
 	service := new(Service)
 	service.pp = port
-	service.ID = hostname + ":" + container.Name[1:] + ":" + port.ExposedPort
 	service.Name = mapdefault(metadata, "name", defaultName)
 	var p int
 	if *internal == true {
@@ -89,6 +89,8 @@ func NewService(port PublishedPort, isgroup bool) *Service {
 		p, _ = strconv.Atoi(port.HostPort)
 	}
 	service.Port = p
+
+	service.ID =  fmt.Sprintf("ip-%s-%d", strings.Replace(port.HostIP , ".", "-", -1), p)
 
 	if port.PortType == "udp" {
 		service.Tags = CombineTags(mapdefault(metadata, "tags", ""), *forceTags, "udp")
@@ -136,7 +138,7 @@ func serviceMetaData(env []string, port string) map[string]string {
 type RegistryBridge struct {
 	sync.Mutex
 	docker   *dockerapi.Client
-	registry ServiceRegistry
+	registries []ServiceRegistry
 	services map[string][]*Service
 }
 
@@ -166,7 +168,6 @@ func (b *RegistryBridge) Add(containerId string) {
 			PortType:    p[1],
 			Container:   container,
 		})
-		// }
 	}
 
 	for _, port := range ports {
@@ -179,9 +180,19 @@ func (b *RegistryBridge) Add(containerId string) {
 			log.Println("registrator: ignored:", container.ID[:12], "service on port", port.ExposedPort)
 			continue
 		}
-		err := retry(func() error {
-			return b.registry.Register(service)
-		})
+
+		err := func() error {
+			for i := range b.registries {
+				e := retry(func() error {
+					return b.registries[i].Register(service)
+				})
+				if (e != nil) {
+					return e
+				}
+			}
+			return nil
+		}()
+
 		if err != nil {
 			log.Println("registrator: unable to register service:", service, err)
 			continue
@@ -199,9 +210,18 @@ func (b *RegistryBridge) Remove(containerId string) {
 	b.Lock()
 	defer b.Unlock()
 	for _, service := range b.services[containerId] {
-		err := retry(func() error {
-			return b.registry.Deregister(service)
-		})
+		err := func() error {
+			for i := range b.registries {
+				e := retry(func() error {
+					return b.registries[i].Deregister(service)
+				})
+				if (e != nil) {
+					return e
+				}
+			}
+			return nil
+		}()
+
 		if err != nil {
 			log.Println("registrator: unable to deregister service:", service.ID, err)
 			continue
@@ -216,7 +236,16 @@ func (b *RegistryBridge) Refresh() {
 	defer b.Unlock()
 	for containerId, services := range b.services {
 		for _, service := range services {
-			err := b.registry.Refresh(service)
+			err := func() error {
+				for i := range b.registries {
+					e := b.registries[i].Refresh(service)
+					if (e != nil) {
+						return e
+					}
+				}
+				return nil
+			}()
+
 			if err != nil {
 				log.Println("registrator: unable to refresh service:", service.ID, err)
 				continue
