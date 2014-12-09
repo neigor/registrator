@@ -46,6 +46,43 @@ func CombineTags(tagParts ...string) []string {
 	return tags
 }
 
+func NewHostService(c *dockerapi.Container) *Service {
+	metadata := serviceMetaData(c.Config.Env, "")
+
+	include := mapdefault(metadata, "include", "")
+
+	if (c.HostConfig.NetworkMode == "host" && include != "") {
+		hostname, err := os.Hostname()
+		if err == nil {
+			ip, err := net.ResolveIPAddr("ip", hostname)
+			if err == nil {
+				service := new(Service)
+
+				service.Name = mapdefault(metadata, "name", "unknown")
+				//service.pp = nil
+
+				service.Port = 0
+
+				service.ID =  fmt.Sprintf("ip-%s-%d", strings.Replace(ip.String(), ".", "-", -1), service.Port)
+
+				delete(metadata, "id")
+				delete(metadata, "tags")
+				delete(metadata, "name")
+				delete(metadata, "include")
+				service.Attrs = metadata
+
+				service.TTL = *refreshTtl
+
+				return service
+			}
+		}
+	}
+
+
+
+	return nil
+}
+
 func NewService(port PublishedPort, isgroup bool) *Service {
 	container := port.Container
 	defaultName := strings.Split(path.Base(container.Config.Image), ":")[0]
@@ -199,6 +236,31 @@ func (b *RegistryBridge) Add(containerId string) {
 		}
 		b.services[container.ID] = append(b.services[container.ID], service)
 		log.Println("registrator: added:", container.ID[:12], service.ID)
+	}
+
+	//may be register service without ports (if it runs in host mode and opts in)
+	if (len(ports) == 0) {
+		s := NewHostService(container)
+		if (s != nil) {
+			err := func() error {
+				for i := range b.registries {
+					e := retry(func() error {
+						return b.registries[i].Register(s)
+					})
+					if (e != nil) {
+						return e
+					}
+				}
+				return nil
+			}()
+
+			if err != nil {
+				log.Println("registrator: unable to register host service:", s, err)
+			} else {
+				b.services[container.ID] = append(b.services[container.ID], s)
+				log.Println("registrator: added host service:", container.ID[:12], s.ID)
+			}
+		}
 	}
 
 	if len(b.services) == 0 {

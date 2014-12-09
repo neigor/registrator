@@ -28,9 +28,14 @@ func NewHAProxyRegistry(uri *url.URL) ServiceRegistry {
 }
 
 func (r *HAProxyRegistry) Register(service *Service) error {
+	if service.pp.ExposedPort == "" {
+		log.Println("Skip proxy backend registration for host container", service.ID)
+		return nil
+	}
+
 	port := strconv.Itoa(service.Port)
 	record := `{"host":"` + service.IP + `","port":` + port + `}`
-	log.Println("Register host " + service.IP + "," + " port:" + port + " proxy="+r.etcdPath(service), service)
+	log.Println("HAProxy register host " + service.IP + "," + " port:" + port + " proxy="+r.etcdPath(service))
 
 	_, err := r.client.Set(r.etcdPath(service), record, uint64(service.TTL))
 
@@ -42,7 +47,7 @@ func (r *HAProxyRegistry) Register(service *Service) error {
 }
 
 func (r *HAProxyRegistry) Deregister(service *Service) error {
-	log.Println("DeRegister host " + service.IP + "," + " port:" + strconv.Itoa(service.Port) + " proxy="+r.etcdPath(service))
+	log.Println("HAProxy DeRegister host " + service.IP + "," + " port:" + strconv.Itoa(service.Port) + " proxy="+r.etcdPath(service))
 	_, err := r.client.Delete(r.etcdPath(service), false)
 	return err
 }
