@@ -53,13 +53,16 @@ func NewHostService(c *dockerapi.Container) *Service {
 
 	if (c.HostConfig.NetworkMode == "host" && include != "") {
 		hostname, err := os.Hostname()
+log.Println("Resolved ", hostname)
 		if err == nil {
 			ip, err := net.ResolveIPAddr("ip", hostname)
+			ip2, _ := net.ResolveIPAddr("ip", c.Config.Hostname)
+			log.Println("Resolved ", hostname, " ", ip.String(), " ", c.Config.Hostname, " ", ip2.String())
 			if err == nil {
 				service := new(Service)
 
 				service.Name = mapdefault(metadata, "name", "unknown")
-				//service.pp = nil
+				service.IP = ip.String()
 
 				service.Port = 0
 
