@@ -49,6 +49,8 @@ func CombineTags(tagParts ...string) []string {
 func NewHostService(c *dockerapi.Container) *Service {
 	metadata := serviceMetaData(c.Config.Env, "")
 
+	log.Println("Metadata", metadata)
+
 	include := mapdefault(metadata, "include", "")
 
 	if (c.HostConfig.NetworkMode == "host" && include != "") {
