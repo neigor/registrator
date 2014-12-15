@@ -28,7 +28,8 @@ func NewHAProxyRegistry(uri *url.URL) ServiceRegistry {
 }
 
 func (r *HAProxyRegistry) Register(service *Service) error {
-	if service.pp.ExposedPort == "" {
+	//make exception for containers with explicit port
+	if service.pp.ExposedPort == "" && service.Port == 0 {
 		log.Println("Skip proxy backend registration for host container", service.ID)
 		return nil
 	}
