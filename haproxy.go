@@ -62,7 +62,7 @@ func (r *HAProxyRegistry) etcdPath(service *Service) string {
 	p := service.pp.ExposedPort
 	//special case for host containers
 	if (p == "") {
-		p = service.Port
+		p = strconv.Itoa(service.Port)
 	}
 
 	return fmt.Sprintf("%s/proxy/%s/%s.%s/%s", r.scope, p, service.Name, r.domain, service.ID)
