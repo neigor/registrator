@@ -59,6 +59,11 @@ func (r *HAProxyRegistry) Refresh(service *Service) error {
 }
 
 func (r *HAProxyRegistry) etcdPath(service *Service) string {
-	return fmt.Sprintf("%s/proxy/%s/%s.%s/%s",
-		               r.scope, service.pp.ExposedPort, service.Name, r.domain, service.ID)
+	p := service.pp.ExposedPort
+	//special case for host containers
+	if (p == "") {
+		p = service.Port
+	}
+
+	return fmt.Sprintf("%s/proxy/%s/%s.%s/%s", r.scope, p, service.Name, r.domain, service.ID)
 }
