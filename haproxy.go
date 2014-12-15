@@ -59,11 +59,15 @@ func (r *HAProxyRegistry) Refresh(service *Service) error {
 }
 
 func (r *HAProxyRegistry) etcdPath(service *Service) string {
-	p := service.pp.ExposedPort
-	//special case for host containers
-	if (p == "") {
-		p = strconv.Itoa(service.Port)
+	if (service.pp.ExposedPort == "") {
+		//special case for host containers, in this case we may want to have one of 2 things
+		// a) LB with stable name
+		// b) dynamic name needed to access internal node. LB will have one backend only
+		if (service.Port == 5051) { //hack - support "b" for mesos slaves only for now
+			return fmt.Sprintf("%s/proxy/%s/%s.%s.%s/%s", r.scope, strconv.Itoa(service.Port), service.ID, service.Name, r.domain, service.ID)
+	    }
+		return fmt.Sprintf("%s/proxy/%s/%s.%s/%s", r.scope, strconv.Itoa(service.Port), service.Name, r.domain, service.ID)
 	}
 
-	return fmt.Sprintf("%s/proxy/%s/%s.%s/%s", r.scope, p, service.Name, r.domain, service.ID)
+	return fmt.Sprintf("%s/proxy/%s/%s.%s/%s", r.scope, service.pp.ExposedPort, service.Name, r.domain, service.ID)
 }
