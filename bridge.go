@@ -71,7 +71,7 @@ func NewHostService(c *dockerapi.Container) *Service {
 				// this way we can get host containers (e.g. mesos) to be visible with proxy
 				service.Port, _ = strconv.Atoi(mapdefault(metadata, "port", "0"))
 
-				service.ID =  fmt.Sprintf("ip-%s-%d", strings.Replace(ip.String(), ".", "-", -1), service.Port)
+				service.ID =  fmt.Sprintf("ip-%s-%d", strings.Replace(service.IP, ".", "-", -1), service.Port)
 
 				delete(metadata, "id")
 				delete(metadata, "tags")
