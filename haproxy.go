@@ -64,10 +64,11 @@ func (r *HAProxyRegistry) etcdPath(service *Service) string {
 		// a) LB with stable name
 		// b) dynamic name needed to access internal node. LB will have one backend only
 		if (service.Port == 5051) { //hack - support "b" for mesos slaves only for now
+			//unlike the true LB these need are just proxies for specific instances and we MUST keep DNS names (can not add ".lb.")
 			return fmt.Sprintf("%s/proxy/%s/%s.%s.%s/%s", r.scope, strconv.Itoa(service.Port), service.ID, service.Name, r.domain, service.ID)
 	    }
-		return fmt.Sprintf("%s/proxy/%s/%s.%s/%s", r.scope, strconv.Itoa(service.Port), service.Name, r.domain, service.ID)
+		return fmt.Sprintf("%s/proxy/%s/%s.lb.%s/%s", r.scope, strconv.Itoa(service.Port), service.Name, r.domain, service.ID)
 	}
 
-	return fmt.Sprintf("%s/proxy/%s/%s.%s/%s", r.scope, service.pp.ExposedPort, service.Name, r.domain, service.ID)
+	return fmt.Sprintf("%s/proxy/%s/%s.lb.%s/%s", r.scope, service.pp.ExposedPort, service.Name, r.domain, service.ID)
 }
