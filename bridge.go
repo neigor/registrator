@@ -46,21 +46,22 @@ func CombineTags(tagParts ...string) []string {
 	return tags
 }
 
-func NewHostService(c *dockerapi.Container) *Service {
+func NewHostService(c *dockerapi.Container, nm string) *Service {
 	metadata := serviceMetaData(c.Config.Env, "")
 
 	log.Println("Metadata", metadata)
 
 	include := mapdefault(metadata, "include", "")
+	sName := mapdefault(metadata, nm, "") //can get SERVICE_NAME or SERVICE_ALTNAME
 
-	if (c.HostConfig.NetworkMode == "host" && include != "") {
+	if (c.HostConfig.NetworkMode == "host" && include != "" && sName != "") {
 		hostname, err := os.Hostname()
 		if err == nil {
 			ip, err := net.ResolveIPAddr("ip", hostname)
 			if err == nil {
 				service := new(Service)
 
-				service.Name = mapdefault(metadata, "name", "unknown")
+				service.Name = sName
 				if *hostIp != "" {
 					service.IP = *hostIp
 				} else {
@@ -226,17 +227,7 @@ func (b *RegistryBridge) Add(containerId string) {
 			continue
 		}
 
-		err := func() error {
-			for i := range b.registries {
-				e := retry(func() error {
-					return b.registries[i].Register(service)
-				})
-				if (e != nil) {
-					return e
-				}
-			}
-			return nil
-		}()
+		err := b.doRegister(service)
 
 		if err != nil {
 			log.Println("registrator: unable to register service:", service, err)
@@ -248,19 +239,10 @@ func (b *RegistryBridge) Add(containerId string) {
 
 	//may be register service without ports (if it runs in host mode and opts in)
 	if (len(ports) == 0) {
-		s := NewHostService(container)
-		if (s != nil) {
-			err := func() error {
-				for i := range b.registries {
-					e := retry(func() error {
-						return b.registries[i].Register(s)
-					})
-					if (e != nil) {
-						return e
-					}
-				}
-				return nil
-			}()
+		names := [...]string {"name", "altname"}
+		for _, nm := range names {
+			s := NewHostService(container, nm)
+			b.doRegister(s)
 
 			if err != nil {
 				log.Println("registrator: unable to register host service:", s, err)
@@ -274,6 +256,24 @@ func (b *RegistryBridge) Add(containerId string) {
 	if len(b.services) == 0 {
 		log.Println("registrator: ignored:", container.ID[:12], "no published ports")
 	}
+}
+
+func (b *RegistryBridge) doRegister(s *Service) error {
+	if (s != nil) {
+		err := func() error {
+			for i := range b.registries {
+				e := retry(func() error {
+					return b.registries[i].Register(s)
+				})
+				if (e != nil) {
+					return e
+				}
+			}
+			return nil
+		}()
+		return err
+	}
+	return nil
 }
 
 func (b *RegistryBridge) Remove(containerId string) {
